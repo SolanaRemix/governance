@@ -3,7 +3,7 @@ set -euo pipefail
 
 default_branch="${1:-main}"
 
-git fetch origin "${default_branch}"
+git fetch origin --prune
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "Working tree is not clean. Commit or stash changes before running sync."
   exit 1

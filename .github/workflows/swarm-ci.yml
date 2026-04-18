@@ -55,7 +55,7 @@ jobs:
           else
             echo "Skipping npm checks (missing package.json)"
           fi
-          run_if_present "requirements.txt" "python -m pip install -r requirements.txt && python -m pytest -q"
+          run_if_present "requirements.txt" "python -m pip install -r requirements.txt"
           run_if_present "pyproject.toml" "python -m pip install ."
           if [[ -e "requirements.txt" || -e "pyproject.toml" ]]; then
             echo "Running: python -m pytest -q"

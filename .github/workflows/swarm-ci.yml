@@ -56,11 +56,22 @@ jobs:
             echo "Skipping npm checks (missing package.json)"
           fi
           run_if_present "requirements.txt" "python -m pip install -r requirements.txt && python -m pytest -q"
-          run_if_present "pyproject.toml" "python -m pip install . && python -m pytest -q"
+          run_if_present "pyproject.toml" "python -m pip install ."
+          if [[ -e "requirements.txt" || -e "pyproject.toml" ]]; then
+            echo "Running: python -m pytest -q"
+            python -m pytest -q
+          else
+            echo "Skipping: python -m pytest -q (missing requirements.txt and pyproject.toml)"
+          fi
           run_if_present "go.mod" "go test ./..."
           run_if_present "Cargo.toml" "cargo test --locked"
           run_if_present "pom.xml" "mvn -B -ntp test"
-          run_if_present "build.gradle" "./gradlew test"
+          if [[ -e "build.gradle" || -e "build.gradle.kts" ]]; then
+            echo "Running: bash ./gradlew test"
+            bash ./gradlew test
+          else
+            echo "Skipping: bash ./gradlew test (missing build.gradle/build.gradle.kts)"
+          fi
 
       - name: Protected artifacts guard
         shell: bash

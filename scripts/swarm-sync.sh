@@ -4,7 +4,12 @@ set -euo pipefail
 default_branch="${1:-main}"
 
 git fetch origin "${default_branch}"
-git checkout "${default_branch}"
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "Working tree is not clean. Commit or stash changes before running sync."
+  exit 1
+fi
+
+git switch "${default_branch}"
 git pull --ff-only origin "${default_branch}"
 
 mapfile -t repair_branches < <(git for-each-ref --format='%(refname:short)' "refs/remotes/origin/swarm-repair-*")
@@ -19,6 +24,7 @@ for branch_ref in "${repair_branches[@]}"; do
   echo "Merging ${branch_ref} into ${default_branch}"
   if ! git merge --no-edit "${branch_ref}"; then
     echo "Merge failed for ${branch_ref}."
+    git merge --abort || true
     exit 1
   fi
 done

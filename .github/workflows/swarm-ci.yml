@@ -34,12 +34,12 @@ jobs:
 
           run_if_present() {
             local marker="$1"
-            local command="$2"
+            shift
             if [[ -e "$marker" ]]; then
-              echo "Running: $command"
-              bash -lc "$command"
+              echo "Running: $*"
+              "$@"
             else
-              echo "Skipping: $command (missing $marker)"
+              echo "Skipping: $* (missing $marker)"
             fi
           }
 
@@ -55,17 +55,21 @@ jobs:
           else
             echo "Skipping npm checks (missing package.json)"
           fi
-          run_if_present "requirements.txt" "python -m pip install -r requirements.txt"
-          run_if_present "pyproject.toml" "python -m pip install ."
+          run_if_present "requirements.txt" python -m pip install -r requirements.txt
+          run_if_present "pyproject.toml" python -m pip install .
           if [[ -e "requirements.txt" || -e "pyproject.toml" ]]; then
-            echo "Running: python -m pytest -q"
-            python -m pytest -q
+            if python -m pytest --version >/dev/null 2>&1; then
+              echo "Running: python -m pytest -q"
+              python -m pytest -q
+            else
+              echo "Skipping: python -m pytest -q (pytest not installed)"
+            fi
           else
             echo "Skipping: python -m pytest -q (missing requirements.txt and pyproject.toml)"
           fi
-          run_if_present "go.mod" "go test ./..."
-          run_if_present "Cargo.toml" "cargo test --locked"
-          run_if_present "pom.xml" "mvn -B -ntp test"
+          run_if_present "go.mod" go test ./...
+          run_if_present "Cargo.toml" cargo test --locked
+          run_if_present "pom.xml" mvn -B -ntp test
           if [[ -e "build.gradle" || -e "build.gradle.kts" ]]; then
             echo "Running: bash ./gradlew test"
             bash ./gradlew test

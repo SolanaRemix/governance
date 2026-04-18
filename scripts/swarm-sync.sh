@@ -33,6 +33,7 @@ git push origin "${default_branch}"
 
 for branch_ref in "${repair_branches[@]}"; do
   branch_name="${branch_ref#origin/}"
+  branch_name="${branch_name#refs/remotes/origin/}"
   echo "Deleting remote branch ${branch_name}"
   git push origin --delete "${branch_name}" || true
 done

@@ -43,7 +43,18 @@ jobs:
             fi
           }
 
-          run_if_present "package.json" "npm ci && npm run lint --if-present && npm run build --if-present && npm test --if-present"
+          if [[ -e "package.json" ]]; then
+            echo "Running npm ci"
+            npm ci
+            echo "Running npm run lint --if-present"
+            npm run lint --if-present
+            echo "Running npm run build --if-present"
+            npm run build --if-present
+            echo "Running npm test --if-present"
+            npm test --if-present
+          else
+            echo "Skipping npm checks (missing package.json)"
+          fi
           run_if_present "requirements.txt" "python -m pip install -r requirements.txt && python -m pytest -q"
           run_if_present "pyproject.toml" "python -m pip install . && python -m pytest -q"
           run_if_present "go.mod" "go test ./..."

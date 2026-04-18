@@ -17,7 +17,10 @@ fi
 
 for branch_ref in "${repair_branches[@]}"; do
   echo "Merging ${branch_ref} into ${default_branch}"
-  git merge --no-edit "${branch_ref}"
+  if ! git merge --no-edit "${branch_ref}"; then
+    echo "Merge failed for ${branch_ref}."
+    exit 1
+  fi
 done
 
 git push origin "${default_branch}"

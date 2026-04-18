@@ -1,0 +1,110 @@
+name: SWARM CI
+
+on:
+  workflow_call:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  repository_dispatch:
+    types: [swarm-ci-trigger]
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swarm-ci-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  swarm-enforcement:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SWARM audit (deterministic checks)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_if_present() {
+            local marker="$1"
+            shift
+            if [[ -e "$marker" ]]; then
+              echo "Running: $*"
+              "$@"
+            else
+              echo "Skipping: $* (missing $marker)"
+            fi
+          }
+
+          if [[ -e "package.json" ]]; then
+            echo "Running npm ci"
+            npm ci
+            echo "Running npm run lint --if-present"
+            npm run lint --if-present
+            echo "Running npm run build --if-present"
+            npm run build --if-present
+            echo "Running npm test --if-present"
+            npm test --if-present
+          else
+            echo "Skipping npm checks (missing package.json)"
+          fi
+          run_if_present "requirements.txt" python -m pip install -r requirements.txt
+          run_if_present "pyproject.toml" python -m pip install .
+          if [[ -e "requirements.txt" || -e "pyproject.toml" ]]; then
+            if python -m pytest --version >/dev/null 2>&1; then
+              echo "Running: python -m pytest -q"
+              python -m pytest -q
+            else
+              echo "Skipping: python -m pytest -q (pytest not installed)"
+            fi
+          else
+            echo "Skipping: python -m pytest -q (missing requirements.txt and pyproject.toml)"
+          fi
+          run_if_present "go.mod" go test ./...
+          run_if_present "Cargo.toml" cargo test --locked
+          run_if_present "pom.xml" mvn -B -ntp test
+          if [[ -e "build.gradle" || -e "build.gradle.kts" ]]; then
+            echo "Running: bash ./gradlew test"
+            bash ./gradlew test
+          else
+            echo "Skipping: bash ./gradlew test (missing build.gradle/build.gradle.kts)"
+          fi
+
+      - name: Protected artifacts guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          git update-index -q --refresh
+          protected_paths=()
+          for path in architecture.md specs docs prompts governance; do
+            if [[ -e "$path" ]]; then
+              protected_paths+=("$path")
+            fi
+          done
+
+          if [[ "${#protected_paths[@]}" -eq 0 ]]; then
+            echo "No protected artifacts found in this repository."
+            exit 0
+          fi
+
+          if ! git diff --quiet -- "${protected_paths[@]}"; then
+            echo "Protected artifacts changed during CI."
+            git --no-pager diff -- "${protected_paths[@]}" || true
+            exit 1
+          fi
+
+          untracked_changes="$(git status --porcelain --untracked-files=all -- "${protected_paths[@]}")"
+          if [[ -n "$untracked_changes" ]]; then
+            echo "Protected artifacts contain untracked files created during CI."
+            printf '%s\n' "$untracked_changes"
+            exit 1
+          fi
+      - name: Termination phrase
+        run: echo "Mode complete. Awaiting operator approval."

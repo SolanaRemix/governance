@@ -100,5 +100,11 @@ jobs:
             exit 1
           fi
 
+          untracked_changes="$(git status --porcelain --untracked-files=all -- "${protected_paths[@]}")"
+          if [[ -n "$untracked_changes" ]]; then
+            echo "Protected artifacts contain untracked files created during CI."
+            printf '%s\n' "$untracked_changes"
+            exit 1
+          fi
       - name: Termination phrase
         run: echo "Mode complete. Awaiting operator approval."

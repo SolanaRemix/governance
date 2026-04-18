@@ -4,7 +4,7 @@ set -euo pipefail
 default_branch="${1:-main}"
 
 git fetch origin "${default_branch}"
-if ! git diff --quiet || ! git diff --cached --quiet; then
+if [[ -n "$(git status --porcelain)" ]]; then
   echo "Working tree is not clean. Commit or stash changes before running sync."
   exit 1
 fi

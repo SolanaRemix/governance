@@ -43,7 +43,7 @@ jobs:
             fi
           }
 
-          run_if_present "package.json" "npm ci --ignore-scripts && npm run lint --if-present && npm run build --if-present && npm test --if-present"
+          run_if_present "package.json" "npm ci && npm run lint --if-present && npm run build --if-present && npm test --if-present"
           run_if_present "requirements.txt" "python -m pip install -r requirements.txt && python -m pytest -q"
           run_if_present "pyproject.toml" "python -m pip install . && python -m pytest -q"
           run_if_present "go.mod" "go test ./..."
@@ -56,9 +56,21 @@ jobs:
         run: |
           set -euo pipefail
           git update-index -q --refresh
-          if ! git diff --quiet -- architecture.md specs docs prompts governance; then
+          protected_paths=()
+          for path in architecture.md specs docs prompts governance; do
+            if [[ -e "$path" ]]; then
+              protected_paths+=("$path")
+            fi
+          done
+
+          if [[ "${#protected_paths[@]}" -eq 0 ]]; then
+            echo "No protected artifacts found in this repository."
+            exit 0
+          fi
+
+          if ! git diff --quiet -- "${protected_paths[@]}"; then
             echo "Protected artifacts changed during CI."
-            git --no-pager diff -- architecture.md specs docs prompts governance || true
+            git --no-pager diff -- "${protected_paths[@]}" || true
             exit 1
           fi
 
